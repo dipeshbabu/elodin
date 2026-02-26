@@ -1278,12 +1278,15 @@ fn parse_color_component_str(value: &str) -> Option<f32> {
 
 fn parse_color_from_text(value: &str) -> Option<Color> {
     let trimmed = value.trim();
+
     if let Some(named) = parse_named_color(trimmed) {
         return Some(named);
     }
+
     if !trimmed.starts_with('(') || !trimmed.ends_with(')') {
         return None;
     }
+
     let values: Vec<&str> = trimmed[1..trimmed.len() - 1]
         .split(',')
         .map(|s| s.trim())
@@ -1291,6 +1294,7 @@ fn parse_color_from_text(value: &str) -> Option<Color> {
     if values.len() < 3 {
         return None;
     }
+
     let (Some(r), Some(g), Some(b)) = (
         parse_color_component_str(values[0]),
         parse_color_component_str(values[1]),
@@ -1298,6 +1302,7 @@ fn parse_color_from_text(value: &str) -> Option<Color> {
     ) else {
         return None;
     };
+
     let a = values
         .get(3)
         .and_then(|v| parse_color_component_str(v))
@@ -1789,6 +1794,42 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_viewport_show_frustums() {
+        let kdl = r#"viewport show_frustums=#true"#;
+        let schematic = parse_schematic(kdl).unwrap();
+
+        assert_eq!(schematic.elems.len(), 1);
+        let SchematicElem::Panel(Panel::Viewport(viewport)) = &schematic.elems[0] else {
+            panic!("Expected viewport panel");
+        };
+        assert!(viewport.show_frustums);
+    }
+
+    #[test]
+    fn test_parse_viewport_create_frustum() {
+        let kdl = r#"viewport create_frustum=#true"#;
+        let schematic = parse_schematic(kdl).unwrap();
+
+        assert_eq!(schematic.elems.len(), 1);
+        let SchematicElem::Panel(Panel::Viewport(viewport)) = &schematic.elems[0] else {
+            panic!("Expected viewport panel");
+        };
+        assert!(viewport.create_frustum);
+    }
+
+    #[test]
+    fn test_parse_viewport_show_frustum_legacy() {
+        let kdl = r#"viewport show_frustum=#true"#;
+        let schematic = parse_schematic(kdl).unwrap();
+
+        assert_eq!(schematic.elems.len(), 1);
+        let SchematicElem::Panel(Panel::Viewport(viewport)) = &schematic.elems[0] else {
+            panic!("Expected viewport panel");
+        };
+        assert!(viewport.show_frustums);
+    }
+
+    #[test]
     fn test_parse_viewport_near_far() {
         let kdl = r#"viewport near=0.05 far=500.0"#;
         let schematic = parse_schematic(kdl).unwrap();
@@ -1836,6 +1877,72 @@ mod tests {
             KdlSchematicError::InvalidValue { property, node, .. } => {
                 assert_eq!(property, "aspect");
                 assert_eq!(node, "viewport");
+            }
+            other => panic!("Expected invalid value error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_viewport_frustums_style() {
+        let kdl = r#"viewport show_frustums=#true frustums_color="yalk" frustums_thickness=0.012"#;
+        let schematic = parse_schematic(kdl).unwrap();
+
+        assert_eq!(schematic.elems.len(), 1);
+        let SchematicElem::Panel(Panel::Viewport(viewport)) = &schematic.elems[0] else {
+            panic!("Expected viewport panel");
+        };
+        assert!(viewport.show_frustums);
+        assert_eq!(viewport.frustums_color, Color::YALK);
+        assert!((viewport.frustums_thickness - 0.012).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_parse_viewport_rejects_invalid_frustums_thickness() {
+        let kdl = r#"viewport frustums_thickness=0.0"#;
+        let err = parse_schematic(kdl).unwrap_err();
+
+        match err {
+            KdlSchematicError::InvalidValue { property, node, .. } => {
+                assert_eq!(property, "frustums_thickness");
+                assert_eq!(node, "viewport");
+            }
+            other => panic!("Expected invalid value error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_viewport_rejects_invalid_frustums_color() {
+        let kdl = r#"viewport frustums_color="not_a_color""#;
+        let err = parse_schematic(kdl).unwrap_err();
+
+        match err {
+            KdlSchematicError::InvalidValue { property, node, .. } => {
+                assert_eq!(property, "frustums_color");
+                assert_eq!(node, "viewport");
+            }
+            other => panic!("Expected invalid value error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_viewport_rejects_partial_color_tuple() {
+        let kdl = r#"viewport frustums_color="(255,)""#;
+        let err = parse_schematic(kdl).unwrap_err();
+        match err {
+            KdlSchematicError::InvalidValue { property, .. } => {
+                assert_eq!(property, "frustums_color");
+            }
+            other => panic!("Expected invalid value error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_viewport_rejects_two_component_color_tuple() {
+        let kdl = r#"viewport frustums_color="(255,128)""#;
+        let err = parse_schematic(kdl).unwrap_err();
+        match err {
+            KdlSchematicError::InvalidValue { property, .. } => {
+                assert_eq!(property, "frustums_color");
             }
             other => panic!("Expected invalid value error, got {other:?}"),
         }
