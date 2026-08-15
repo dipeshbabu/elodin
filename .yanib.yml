@@ -1,0 +1,28 @@
+version: 1
+surfaces:
+  - name: fsw-flight-apps
+    # A new crate under fsw/ is a new flight software application (e.g. serial-bridge,
+    # mekf, sensor-fw) that Aleph nodes and downstream vehicle configs can now depend on.
+    # Affects integrators wiring up flight stacks and anyone composing aleph modules.
+    paths: ["fsw/*/Cargo.toml"]
+    detect: new_file
+
+  - name: aleph-nixos-modules
+    # A new file under aleph/modules is a new NixOS module composable into the flight
+    # software stack. Affects anyone assembling or deploying an aleph-based vehicle image.
+    paths: ["aleph/modules/**"]
+    detect: new_file
+    docs: ["aleph/README.md"]
+
+  - name: elodin-cli-commands
+    # A new file under apps/elodin/src/cli is a new CLI subcommand exposed to end users
+    # of the elodin editor/tooling. Affects scripts, docs, and anyone driving elodin from a shell.
+    paths: ["apps/elodin/src/cli/**"]
+    detect: new_file
+    docs: ["docs/public/content/reference/elodin-cli.md"]
+
+  - name: example-simulations
+    # A new example directory with a README is a new runnable simulation demonstrating
+    # a capability of the SDK/engine. Affects users browsing examples to learn the platform.
+    paths: ["examples/*/README.md"]
+    detect: new_file
